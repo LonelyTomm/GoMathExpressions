@@ -111,7 +111,7 @@ func readOperator(source []rune, position int) (*Token, int) {
 	}
 
 	if len(tokenValue) > 0 {
-		return &Token{Kind: Operator, Value: string(tokenValue)}, position
+		return &Token{Kind: Operator, Value: string(tokenValue), StartPosition: startPosition}, position
 	}
 
 	return nil, position
