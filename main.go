@@ -3,9 +3,10 @@ package main
 import "fmt"
 
 func main() {
-	var tokens = Lex([]rune("1 + 23-sin(56) + (34-8)"))
+	var tokens = Lex([]rune("(1 * 3 + ((8 / 2) *(3+4)))"))
+	var tokenPeeker = newTokenPeeker(tokens, 0)
 
-	for _, token := range tokens {
-		fmt.Println(token.Value)
-	}
+	var startNode = parse(tokenPeeker)
+	fmt.Printf(startNode.operator)
+	return
 }

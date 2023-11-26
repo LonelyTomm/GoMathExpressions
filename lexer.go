@@ -19,6 +19,27 @@ type Token struct {
 	StartPosition int
 }
 
+type tokenPeeker struct {
+	tokens       []Token
+	currentIndex int
+}
+
+func (tp *tokenPeeker) peek() *Token {
+	if tp.currentIndex > len(tp.tokens)-1 {
+		return nil
+	}
+
+	return &(tp.tokens[tp.currentIndex])
+}
+
+func (tp *tokenPeeker) next() {
+	tp.currentIndex++
+}
+
+func newTokenPeeker(tokens []Token, currentIndex int) *tokenPeeker {
+	return &tokenPeeker{tokens: tokens, currentIndex: currentIndex}
+}
+
 func Lex(source []rune) []Token {
 	var tokens []Token = []Token{}
 	var position int = 0
