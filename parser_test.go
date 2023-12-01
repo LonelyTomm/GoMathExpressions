@@ -9,7 +9,7 @@ func TestParse(t *testing.T) {
 	}{
 		{
 			tokenPeeker: newTokenPeeker(
-				Lex([]rune("(1*3)+(8/4)")),
+				Lex([]rune("(1*3)+min(3,4, 6)")),
 				0,
 			),
 			expectedTree: &node{
@@ -32,15 +32,19 @@ func TestParse(t *testing.T) {
 					},
 					{
 						kind:     listNode,
-						operator: "/",
+						operator: "min",
 						list: []*node{
 							{
 								kind:  literalNode,
-								value: "8",
+								value: "3",
 							},
 							{
 								kind:  literalNode,
 								value: "4",
+							},
+							{
+								kind:  literalNode,
+								value: "6",
 							},
 						},
 					},
@@ -50,7 +54,7 @@ func TestParse(t *testing.T) {
 	}
 
 	for testCaseIdx, testCase := range testCases {
-		gotTree := parse(testCase.tokenPeeker)
+		gotTree := parse(testCase.tokenPeeker, 0)
 		gotTreeString := gotTree.printNode()
 		expectedTreeString := testCase.expectedTree.printNode()
 		if gotTreeString != expectedTreeString {

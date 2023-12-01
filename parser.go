@@ -1,11 +1,15 @@
 package main
 
+import "fmt"
+
 type nodeKind int
 
 const (
 	listNode nodeKind = iota
 	literalNode
 )
+
+const maxPrecedence = 2
 
 type node struct {
 	kind     nodeKind
@@ -21,85 +25,131 @@ func (nd *node) printNode() string {
 	}
 
 	if nd.kind == listNode {
-		resultString = resultString + "(" + nd.list[0].printNode() + ")"
-		resultString = resultString + nd.operator
-		resultString = resultString + "(" + nd.list[1].printNode() + ")"
+		switch nd.operator {
+		case "+", "-", "*", "/":
+			if nd.operator == "-" && len(nd.list) == 1 {
+				resultString = resultString + "(" + "-" + nd.list[0].printNode() + ")"
+			} else {
+				resultString = resultString + "(" + nd.list[0].printNode() + ")"
+				resultString = resultString + nd.operator
+				resultString = resultString + "(" + nd.list[1].printNode() + ")"
+			}
+		default:
+			resultString = resultString + nd.operator + "("
+			for i := 0; i < len(nd.list); i++ {
+				resultString = resultString + nd.list[i].printNode()
+				if i != len(nd.list) {
+					resultString = resultString + ", "
+				}
+			}
+
+			resultString = resultString + ")"
+		}
 	}
 
 	return resultString
 }
 
-func parse(tokenPeeker *tokenPeeker) *node {
-	var currentToken = tokenPeeker.peek()
-	tokenPeeker.next()
-	var ltNode *node
-	if currentToken.Kind == Number {
-		ltNode = &node{kind: literalNode, value: currentToken.Value}
+func parse(tokenPeeker *tokenPeeker, precedence int) *node {
+	if precedence >= maxPrecedence {
+		return parsePrimary(tokenPeeker)
 	}
 
-	if currentToken.Kind == Parenthesis && currentToken.Value == "(" {
-		ltNode = parse(tokenPeeker)
-	}
+	lhs := parse(tokenPeeker, precedence+1)
 
-	if ltNode == nil {
-		panic("Wasn't supposed to get here. Probably error in syntax of expression")
-	}
+	currentToken := tokenPeeker.peek()
+	if currentToken != nil {
+		if isBinaryInfixOperator(currentToken.Value) && getPrecedence(currentToken.Value) == precedence {
+			tokenPeeker.next()
+			rhs := parse(tokenPeeker, precedence)
 
-	return parseOperatorPrecedence(ltNode, tokenPeeker, 0)
-}
-
-func parseOperatorPrecedence(lhs *node, tp *tokenPeeker, minPrecedence int) *node {
-	for {
-		var currentToken = tp.peek()
-
-		if currentToken == nil {
-			break
-		}
-		var precedence = getPrecedence(currentToken.Value)
-		if currentToken.Kind != Operator || precedence < minPrecedence {
-			break
-		}
-
-		var operator = currentToken.Value
-		tp.next()
-
-		currentToken = tp.peek()
-
-		var rhs *node
-		if currentToken.Kind == Number {
-			rhs = &node{kind: literalNode, value: currentToken.Value}
-		} else if currentToken.Kind == Parenthesis && currentToken.Value == "(" {
-			tp.next()
-			rhs = parse(tp)
-		}
-
-		tp.next()
-
-		for {
-			currentToken = tp.peek()
-
-			if currentToken == nil {
-				break
+			return &node{
+				kind:     listNode,
+				operator: currentToken.Value,
+				list:     []*node{lhs, rhs},
 			}
-
-			if currentToken.Kind == Parenthesis && currentToken.Value == ")" {
-				tp.next()
-				return &node{kind: listNode, operator: operator, list: []*node{lhs, rhs}}
-			}
-
-			var nextOperationPrecedence = getPrecedence(currentToken.Value)
-			if nextOperationPrecedence <= precedence {
-				break
-			}
-
-			rhs = parseOperatorPrecedence(rhs, tp, nextOperationPrecedence)
 		}
-
-		var resultNode = &node{kind: listNode, operator: operator, list: []*node{lhs, rhs}}
-		lhs = resultNode
 	}
 
 	return lhs
+}
+
+func parsePrimary(tokenPeeker *tokenPeeker) *node {
+	currentToken := tokenPeeker.peek()
+	tokenPeeker.next()
+	if currentToken != nil {
+		if currentToken.Kind == Operator && currentToken.Value == "-" {
+			nextToken := tokenPeeker.peek()
+			operator := currentToken.Value
+			var operand *node
+			if nextToken.Kind == Parenthesis && nextToken.Value == "(" {
+				tokenPeeker.next()
+				operand = parse(tokenPeeker, 0)
+				currentToken = tokenPeeker.peek()
+
+				if currentToken.Kind != Parenthesis || currentToken.Value != ")" {
+					panic(fmt.Sprintf("Expected to get ), after unary operator %s got %s instead", operator, currentToken.Value))
+				}
+				tokenPeeker.next()
+			} else if nextToken.Kind == Number {
+				tokenPeeker.next()
+				operand = &node{
+					kind:  literalNode,
+					value: nextToken.Value,
+				}
+			}
+
+			return &node{
+				kind:     listNode,
+				operator: operator,
+				list:     []*node{operand},
+			}
+		} else if currentToken.Kind == Parenthesis && currentToken.Value == "(" {
+			node := parse(tokenPeeker, 0)
+			currentToken = tokenPeeker.peek()
+			if currentToken.Kind != Parenthesis || currentToken.Value != ")" {
+				panic(fmt.Sprintf("Expected to get (, got %s instead", currentToken.Value))
+			}
+			tokenPeeker.next()
+
+			return node
+		} else if currentToken.Kind == Number {
+			return &node{
+				kind:  literalNode,
+				value: currentToken.Value,
+			}
+		} else if currentToken.Kind == Operator {
+			nextToken := tokenPeeker.peek()
+			tokenPeeker.next()
+			if nextToken.Kind != Parenthesis || nextToken.Value != "(" {
+				panic(fmt.Sprintf("Expected to get ( after operator %s, got %s instead", currentToken.Value, nextToken.Value))
+			}
+
+			args := []*node{}
+			args = append(args, parse(tokenPeeker, 0))
+
+			nextToken = tokenPeeker.peek()
+			for nextToken.Kind == Comma && nextToken.Value == "," {
+				tokenPeeker.next()
+				args = append(args, parse(tokenPeeker, 0))
+				nextToken = tokenPeeker.peek()
+			}
+
+			if nextToken.Kind != Parenthesis || nextToken.Value != ")" {
+				panic(fmt.Sprintf("Expected to get ) after operator %s, got %s instead", currentToken.Value, nextToken.Value))
+			}
+
+			tokenPeeker.next()
+
+			return &node{
+				kind:     listNode,
+				operator: currentToken.Value,
+				list:     args,
+			}
+		}
+	}
+
+	panic("Unexpected end of expression")
 }
 
 func getPrecedence(operator string) int {
@@ -110,5 +160,14 @@ func getPrecedence(operator string) int {
 		return 1
 	default:
 		return 0
+	}
+}
+
+func isBinaryInfixOperator(operator string) bool {
+	switch operator {
+	case "+", "-", "/", "*":
+		return true
+	default:
+		return false
 	}
 }

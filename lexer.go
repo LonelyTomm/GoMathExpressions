@@ -11,6 +11,7 @@ const (
 	Number TokenKind = iota
 	Parenthesis
 	Operator
+	Comma
 )
 
 type Token struct {
@@ -52,6 +53,11 @@ func Lex(source []rune) []Token {
 
 		var token *Token
 		if token, position = readNumber(source, position); token != nil {
+			tokens = append(tokens, *token)
+			continue
+		}
+
+		if token, position = readComma(source, position); token != nil {
 			tokens = append(tokens, *token)
 			continue
 		}
@@ -108,6 +114,14 @@ func readNumber(source []rune, position int) (*Token, int) {
 func readParenthesis(source []rune, position int) (*Token, int) {
 	if isParenthesis(source[position]) {
 		return &Token{Kind: Parenthesis, Value: string([]rune{source[position]}), StartPosition: position}, position + 1
+	}
+
+	return nil, position
+}
+
+func readComma(source []rune, position int) (*Token, int) {
+	if source[position] == ',' {
+		return &Token{Kind: Comma, Value: ",", StartPosition: position}, position + 1
 	}
 
 	return nil, position
