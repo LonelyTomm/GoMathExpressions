@@ -78,26 +78,9 @@ func parsePrimary(tokenPeeker *tokenPeeker) *node {
 	currentToken := tokenPeeker.peek()
 	tokenPeeker.next()
 	if currentToken != nil {
-		if currentToken.Kind == Operator && currentToken.Value == "-" {
-			nextToken := tokenPeeker.peek()
+		if currentToken.Kind == Operator && isUnaryOperator(currentToken.Value) {
 			operator := currentToken.Value
-			var operand *node
-			if nextToken.Kind == Parenthesis && nextToken.Value == "(" {
-				tokenPeeker.next()
-				operand = parse(tokenPeeker, 0)
-				currentToken = tokenPeeker.peek()
-
-				if currentToken.Kind != Parenthesis || currentToken.Value != ")" {
-					panic(fmt.Sprintf("Expected to get ), after unary operator %s got %s instead", operator, currentToken.Value))
-				}
-				tokenPeeker.next()
-			} else if nextToken.Kind == Number {
-				tokenPeeker.next()
-				operand = &node{
-					kind:  literalNode,
-					value: nextToken.Value,
-				}
-			}
+			operand := parsePrimary(tokenPeeker)
 
 			return &node{
 				kind:     listNode,
@@ -170,4 +153,8 @@ func isBinaryInfixOperator(operator string) bool {
 	default:
 		return false
 	}
+}
+
+func isUnaryOperator(operator string) bool {
+	return operator == "-"
 }
