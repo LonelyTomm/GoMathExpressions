@@ -6,7 +6,7 @@ Basic math expressions parser and evaluator, written completely in go.
 
 Operator supports unary operators (**-** minus operator only) as well as precedence parsing and brackets.
 
-## Supported functions
+## Supported operators
 
 ### Infix operators
 
@@ -15,7 +15,7 @@ Operator supports unary operators (**-** minus operator only) as well as precede
 - \* multiply operator
 - / divide operator
 
-### Prefix operatorators
+### Prefix operators
 
 - min() accepts list of any number of arguments, returns one that resulted in minimum value
 
